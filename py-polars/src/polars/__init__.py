@@ -117,6 +117,7 @@ from polars.datatypes.extension import (
     register_extension_type,
     unregister_extension_type,
 )
+from polars._inspect import Report, inspect
 from polars.expr import Expr
 from polars.functions import (
     align_frames,
@@ -286,6 +287,9 @@ __all__ = [
     "Expr",
     "LazyFrame",
     "Series",
+    # static analysis
+    "Report",
+    "inspect",
     # Engine configuration
     "GPUEngine",
     # schema

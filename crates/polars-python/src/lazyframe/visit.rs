@@ -232,15 +232,23 @@ impl NodeTraverser {
 #[pymethods]
 #[allow(clippy::should_implement_trait)]
 impl PyLazyFrame {
-    fn visit(&self) -> PyResult<NodeTraverser> {
-        let mut lp_arena = Arena::with_capacity(16);
-        let mut expr_arena = Arena::with_capacity(16);
-        let root = self
-            .ldf
-            .read()
-            .clone()
-            .optimize(&mut lp_arena, &mut expr_arena)
-            .map_err(PyPolarsErr::from)?;
+    #[pyo3(signature = (optimized = true))]
+    fn visit(&self, optimized: bool) -> PyResult<NodeTraverser> {
+        let ldf = self.ldf.read().clone();
+        let (root, lp_arena, expr_arena) = if optimized {
+            let mut lp_arena = Arena::with_capacity(16);
+            let mut expr_arena = Arena::with_capacity(16);
+            let root = ldf
+                .optimize(&mut lp_arena, &mut expr_arena)
+                .map_err(PyPolarsErr::from)?;
+            (root, lp_arena, expr_arena)
+        } else {
+            // The plan as written by the user: only DSL -> IR conversion, no optimization
+            // passes. Static analysis needs to see the query before e.g. CSE and
+            // projection pushdown rewrite it.
+            let plan = ldf.to_alp().map_err(PyPolarsErr::from)?;
+            (plan.lp_top, plan.lp_arena, plan.expr_arena)
+        };
         Ok(NodeTraverser {
             root,
             lp_arena: Arc::new(Mutex::new(lp_arena)),
